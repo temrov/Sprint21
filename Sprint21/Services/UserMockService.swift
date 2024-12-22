@@ -6,7 +6,7 @@
 //
 import Foundation
 
-final class UserMockService: @unchecked Sendable {
+actor UserMockService {
 
     private(set) var users = [User]()
     private(set) var isFetching = false
@@ -16,35 +16,36 @@ final class UserMockService: @unchecked Sendable {
     init(fetcher: UserFetcher) {
         self.fetcher = fetcher
     }
+
+    private func fetchUser(with id: Int) async -> User? {
+        await fetcher.fetchUser(with: id)
+    }
 }
 
 extension UserMockService: UserService {
 
-    func fetchUsers(completion: @escaping ([User]) -> Void) {
-
+    func fetchUsers() async -> [User] {
         guard users.isEmpty, isFetching == false else {
-            completion(users)
-            return
+            return users
         }
-        isFetching = true
-        let group = DispatchGroup()
-
-        for i in 0..<fetcher.usersCount {
-            fetcher.fetchUser(with: i) { [weak self] result in
-                defer {
-                    group.leave()
+        defer {
+            isFetching = false
+        }
+        self.users = await withTaskGroup(of: User?.self, returning: [User].self) { group in
+            for i in 0 ..< fetcher.usersCount {
+                group.addTask {
+                    await self.fetchUser(with: i)
                 }
-                guard let result, let self else { return }
-                self.users.insert(result, at: self.users.indexToInsertUser(with: result.id))
             }
-            group.enter()
+            var users: [User] = []
+            while let result = await group.next() {
+                if let user = result {
+                    users.insert(user, at: users.indexToInsertUser(with: user.id))
+                }
+            }
+            return users
         }
-        group.notify(queue: .main) { [weak self] in
-            // все пользователи загружены
-            guard let self else { return }
-            self.isFetching = true
-            completion(self.users)
-        }
+        return users
     }
 }
 

@@ -21,9 +21,9 @@ final class UserListViewModel: @unchecked Sendable {
     @MainActor
     func fetchUsers() {
         isLoading = true
-        userService.fetchUsers { [weak self] users in
-            self?.users = users
-            self?.isLoading = false
+        Task {
+            self.users = await userService.fetchUsers()
+            self.isLoading = false
         }
     }
 }

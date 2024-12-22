@@ -6,9 +6,19 @@
 //
 import Foundation
 
-protocol UserFetcher {
+protocol UserFetcher: Sendable {
     var usersCount: Int { get }
     func fetchUser(with id: Int, completion: @escaping @Sendable (User?) -> Void)
+}
+
+extension UserFetcher {
+    func fetchUser(with id: Int) async -> User? {
+        await withCheckedContinuation { continuation in
+            fetchUser(with: id) { user in
+                continuation.resume(returning: user)
+            }
+        }
+    }
 }
 
 final class UserMockFetcher {
