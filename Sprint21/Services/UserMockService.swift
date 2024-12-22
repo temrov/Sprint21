@@ -5,34 +5,56 @@
 //  Created by Vadim Temnogrudov on 22.12.2024.
 //
 import Foundation
+import Combine
 
-final class UserMockService {
-    private let userNames: [String] = ["Vadim", "Sergey", "Alex", "Max", "Vlad", "Igor", "Oleg", "Artem", "Vitaly", "Dmitry"]
-    private static func retrieveDelay() -> TimeInterval {
-        Double.random(in: 1...3)
+final class UserMockService: @unchecked Sendable {
+    private var users = CurrentValueSubject<[User], Never>([User]())
+    private var isFetchingUsers = CurrentValueSubject<Bool, Never>(false)
+
+    private let fetcher: UserFetcher
+
+    init(fetcher: UserFetcher) {
+        self.fetcher = fetcher
     }
 }
 
 extension UserMockService: UserService {
-    func fetchUser(with id: Int, completion: @escaping @Sendable (User?) -> Void) {
-        let user = userNames[safe: id].map( { User(id: id, name: $0)})
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(
-            deadline: .now() + Self.retrieveDelay()
-        ) {
-            completion(user)
+    var isFetchingPublisher: AnyPublisher<Bool, Never> {
+        isFetchingUsers.eraseToAnyPublisher()
+    }
+    
+    var usersPublisher: AnyPublisher<[User], Never> {
+        users.eraseToAnyPublisher()
+    }
+    
+    func fetchUsers() {
+        guard users.value.isEmpty, isFetchingUsers.value == false else { return }
+        isFetchingUsers.send(true)
+        let group = DispatchGroup()
+
+        for i in 0..<fetcher.usersCount {
+            fetcher.fetchUser(with: i) { [weak self] result in
+                defer {
+                    group.leave()
+                }
+                guard let result, let self else { return }
+                var allUsers = users.value
+                allUsers.insert(result, at: allUsers.indexToInsertUser(with: result.id))
+                self.users.send(allUsers)
+            }
+            group.enter()
+        }
+        group.notify(queue: .main) { [weak self] in
+            // все пользователи загружены
+            self?.isFetchingUsers.send(false)
         }
     }
 }
 
-extension Array {
-    subscript(safe index: Int) -> Element? {
-        get {
-            guard index <= count else { return nil }
-            return self[index]
-        }
-        set {
-            guard index <= count, let newValue else { return }
-            self[index] = newValue
-        }
+extension UserMockService {
+    static var `default`: UserMockService {
+        UserMockService(fetcher: UserMockFetcher())
     }
 }
+
+

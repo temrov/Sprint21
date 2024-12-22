@@ -6,6 +6,7 @@
 //
 import Foundation
 import SwiftUI
+import Combine
 
 @Observable
 final class UserListViewModel: @unchecked Sendable {
@@ -13,28 +14,19 @@ final class UserListViewModel: @unchecked Sendable {
     var isLoading: Bool = false
 
     private let userService: UserService
+    private var cancellables: Set<AnyCancellable> = []
 
     init(userService: UserService) {
         self.userService = userService
     }
 
     func fetchUsers() {
-        isLoading = true
-        let group = DispatchGroup()
-        for i in 0..<10 {
-            userService.fetchUser(with: i) { [weak self] result in
-                DispatchQueue.main.async {
-                    defer {
-                        group.leave()
-                    }
-                    guard let result, let self else { return }
-                    self.users.insert(result, at: self.users.indexToInsertUser(with: result.id))
-                }
-            }
-            group.enter()
-        }
-        group.notify(queue: .main) { [weak self] in
-            self?.isLoading = false
-        }
+        userService.fetchUsers()
+        userService.isFetchingPublisher.receive(on: RunLoop.main).sink { [weak self] in
+            self?.isLoading = $0
+        }.store(in: &cancellables)
+        userService.usersPublisher.receive(on: RunLoop.main).sink { [weak self] in
+            self?.users = $0
+        }.store(in: &cancellables)
     }
 }

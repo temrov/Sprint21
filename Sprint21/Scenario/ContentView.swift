@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        UserList(model: UserListViewModel(userService: UserMockService()))
+        UserList(model: UserListViewModel(userService: UserMockService.default))
     }
 }
 

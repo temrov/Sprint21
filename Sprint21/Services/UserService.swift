@@ -4,7 +4,11 @@
 //
 //  Created by Vadim Temnogrudov on 22.12.2024.
 //
+import Combine
 
 protocol UserService {
-    func fetchUser(with id: Int, completion: @escaping @Sendable (User?) -> Void)
+    func fetchUsers()
+
+    var isFetchingPublisher: AnyPublisher<Bool, Never> { get }
+    var usersPublisher: AnyPublisher<[User], Never> { get }
 }
