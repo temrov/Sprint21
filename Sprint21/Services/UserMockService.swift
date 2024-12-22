@@ -5,11 +5,11 @@
 //  Created by Vadim Temnogrudov on 22.12.2024.
 //
 import Foundation
-import Combine
 
 final class UserMockService: @unchecked Sendable {
-    private var users = CurrentValueSubject<[User], Never>([User]())
-    private var isFetchingUsers = CurrentValueSubject<Bool, Never>(false)
+
+    private(set) var users = [User]()
+    private(set) var isFetching = false
 
     private let fetcher: UserFetcher
 
@@ -19,17 +19,14 @@ final class UserMockService: @unchecked Sendable {
 }
 
 extension UserMockService: UserService {
-    var isFetchingPublisher: AnyPublisher<Bool, Never> {
-        isFetchingUsers.eraseToAnyPublisher()
-    }
-    
-    var usersPublisher: AnyPublisher<[User], Never> {
-        users.eraseToAnyPublisher()
-    }
-    
-    func fetchUsers() {
-        guard users.value.isEmpty, isFetchingUsers.value == false else { return }
-        isFetchingUsers.send(true)
+
+    func fetchUsers(completion: @escaping ([User]) -> Void) {
+
+        guard users.isEmpty, isFetching == false else {
+            completion(users)
+            return
+        }
+        isFetching = true
         let group = DispatchGroup()
 
         for i in 0..<fetcher.usersCount {
@@ -38,20 +35,21 @@ extension UserMockService: UserService {
                     group.leave()
                 }
                 guard let result, let self else { return }
-                var allUsers = users.value
-                allUsers.insert(result, at: allUsers.indexToInsertUser(with: result.id))
-                self.users.send(allUsers)
+                self.users.insert(result, at: self.users.indexToInsertUser(with: result.id))
             }
             group.enter()
         }
         group.notify(queue: .main) { [weak self] in
             // все пользователи загружены
-            self?.isFetchingUsers.send(false)
+            guard let self else { return }
+            self.isFetching = true
+            completion(self.users)
         }
     }
 }
 
 extension UserMockService {
+
     static var `default`: UserMockService {
         UserMockService(fetcher: UserMockFetcher())
     }
