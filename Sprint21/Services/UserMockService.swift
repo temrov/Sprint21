@@ -34,30 +34,26 @@ final class UserMockService: Sendable {
 }
 
 extension UserMockService: UserService {
+    func fetchUsers() async -> AsyncStream<[User]> {
 
-    func fetchUsers() async -> [User] {
-        guard await userStorage.isFetching == false else {
-            return await userStorage.users
-        }
-        await userStorage.fetchingStarted()
-
-        await withTaskGroup(of: User?.self) { group in
-            for i in 0 ..< fetcher.usersCount {
-                group.addTask {
-                    await self.fetcher.fetchUser(with: i)
+        AsyncStream { continuation in
+            Task {
+                await withTaskGroup(of: User?.self) { group in
+                    for i in 0 ..< fetcher.usersCount {
+                        group.addTask {
+                            await self.fetcher.fetchUser(with: i)
+                        }
+                    }
+                    while let result = await group.next() {
+                        if let user = result {
+                            await userStorage.insert(user)
+                            continuation.yield(await userStorage.users)
+                        }
+                    }
+                    continuation.finish()
                 }
             }
-            while let result = await group.next() {
-                if let user = result {
-                    await userStorage.insert(user)
-                }
-            }
         }
-
-
-        await userStorage.fetchingFinished()
-
-        return await userStorage.users
     }
 }
 

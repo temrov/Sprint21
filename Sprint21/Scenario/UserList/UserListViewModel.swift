@@ -21,8 +21,12 @@ final class UserListViewModel: @unchecked Sendable {
     @MainActor
     func fetchUsers() {
         isLoading = true
+
         Task {
-            self.users = await userService.fetchUsers()
+            var stream = await userService.fetchUsers().makeAsyncIterator()
+            while let users = await stream.next() {
+                self.users = users
+            }
             self.isLoading = false
         }
     }

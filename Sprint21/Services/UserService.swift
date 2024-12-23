@@ -6,5 +6,6 @@
 //
 
 protocol UserService {
-    func fetchUsers() async -> [User]
+
+    func fetchUsers() async -> AsyncStream<[User]>
 }
