@@ -9,16 +9,19 @@ import Combine
 
 actor UsersStorage {
     var users = [User]()
-    var isFetching = false
+    private var stream: AsyncStream<[User]>?
 
     func insert(_ user: User) {
         users.insert(user, at: users.indexToInsertUser(with: user.id))
     }
-    func fetchingStarted() {
-        isFetching = true
-    }
-    func fetchingFinished() {
-        isFetching = false
+
+    func stream(createNew: () -> AsyncStream<[User]>) -> AsyncStream<[User]> {
+        if let stream {
+            return stream
+        }
+        let stream = createNew()
+        self.stream = stream
+        return stream
     }
 }
 
@@ -31,11 +34,8 @@ final class UserMockService: Sendable {
     init(fetcher: UserFetcher) {
         self.fetcher = fetcher
     }
-}
 
-extension UserMockService: UserService {
-    func fetchUsers() async -> AsyncStream<[User]> {
-
+    private func createStream() -> AsyncStream<[User]> {
         AsyncStream { continuation in
             Task {
                 await withTaskGroup(of: User?.self) { group in
@@ -54,6 +54,12 @@ extension UserMockService: UserService {
                 }
             }
         }
+    }
+}
+
+extension UserMockService: UserService {
+    func fetchUsers() async -> AsyncStream<[User]> {
+        await userStorage.stream(createNew: createStream)
     }
 }
 

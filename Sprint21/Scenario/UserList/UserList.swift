@@ -19,7 +19,10 @@ struct UserList: View {
             }
         }
         .onAppear {
-            model.fetchUsers()
+            model.preheatUsers()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0) {
+                model.fetchUsers()
+            }
         }
     }
 }

@@ -30,4 +30,10 @@ final class UserListViewModel: @unchecked Sendable {
             self.isLoading = false
         }
     }
+
+    func preheatUsers() {
+        Task {
+            await userService.fetchUsers()
+        }
+    }
 }
