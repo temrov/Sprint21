@@ -7,24 +7,10 @@
 import Foundation
 import Combine
 
-actor UsersStorage {
-    var users = [User]()
-    var isFetching = false
+actor UserMockService: Sendable {
 
-    func insert(_ user: User) {
-        users.insert(user, at: users.indexToInsertUser(with: user.id))
-    }
-    func fetchingStarted() {
-        isFetching = true
-    }
-    func fetchingFinished() {
-        isFetching = false
-    }
-}
-
-final class UserMockService: Sendable {
-
-    private let userStorage = UsersStorage()
+    private var users = [User]()
+    private var fetchingTask: Task<[User], Never>?
 
     private let fetcher: UserFetcher
 
@@ -36,28 +22,34 @@ final class UserMockService: Sendable {
 extension UserMockService: UserService {
 
     func fetchUsers() async -> [User] {
-        guard await userStorage.isFetching == false else {
-            return await userStorage.users
-        }
-        await userStorage.fetchingStarted()
-
-        await withTaskGroup(of: User?.self) { group in
-            for i in 0 ..< fetcher.usersCount {
-                group.addTask {
-                    await self.fetcher.fetchUser(with: i)
-                }
-            }
-            while let result = await group.next() {
-                if let user = result {
-                    await userStorage.insert(user)
-                }
-            }
+        print("Fetch started")
+        defer { print("Fetch finished") }
+        if let fetchingTask {
+            return await fetchingTask.value
         }
 
+        let fetchingTask = Task {
+            await withTaskGroup(of: User?.self) { group in
+                for i in 0 ..< fetcher.usersCount {
+                    group.addTask {
+                        await self.fetcher.fetchUser(with: i)
+                    }
+                }
+                while let result = await group.next() {
+                    if let user = result {
+                        users.insert(user, at: users.indexToInsertUser(with: user.id))
+                    }
+                }
+            }
+            return users
+        }
+        self.fetchingTask = fetchingTask
+        defer {
+            self.fetchingTask = nil
+        }
+        return await fetchingTask.value
 
-        await userStorage.fetchingFinished()
 
-        return await userStorage.users
     }
 }
 
