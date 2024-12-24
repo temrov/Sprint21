@@ -7,29 +7,11 @@
 import Foundation
 import Combine
 
-actor UsersStorage {
-    var users = [User]()
-    private var stream: AsyncStream<[User]>?
-
-    func insert(_ user: User) {
-        users.insert(user, at: users.indexToInsertUser(with: user.id))
-    }
-
-    func stream(createNew: () -> AsyncStream<[User]>) -> AsyncStream<[User]> {
-        if let stream {
-            return stream
-        }
-        let stream = createNew()
-        self.stream = stream
-        return stream
-    }
-}
-
-final class UserMockService: Sendable {
-
-    private let userStorage = UsersStorage()
-
+actor UserMockService: Sendable {
     private let fetcher: UserFetcher
+
+    private var users = [User]()
+    private var stream: AsyncStream<[User]>?
 
     init(fetcher: UserFetcher) {
         self.fetcher = fetcher
@@ -46,8 +28,8 @@ final class UserMockService: Sendable {
                     }
                     while let result = await group.next() {
                         if let user = result {
-                            await userStorage.insert(user)
-                            continuation.yield(await userStorage.users)
+                            users.insert(user, at: users.indexToInsertUser(with: user.id))
+                            continuation.yield(users)
                         }
                     }
                     continuation.finish()
@@ -59,7 +41,12 @@ final class UserMockService: Sendable {
 
 extension UserMockService: UserService {
     func fetchUsers() async -> AsyncStream<[User]> {
-        await userStorage.stream(createNew: createStream)
+        if let stream {
+            return stream
+        }
+        let stream = createStream()
+        self.stream = stream
+        return stream
     }
 }
 
