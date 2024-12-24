@@ -25,8 +25,8 @@ final class UserListViewModel: @unchecked Sendable {
             self.users = await userService.fetchUsers()
             self.isLoading = false
         }
-        Task {
-            self.users = await userService.fetchUsers()
+        Task.detached {
+            _ = await self.userService.fetchUsers()
         }
     }
 }

@@ -44,9 +44,6 @@ extension UserMockService: UserService {
             return users
         }
         self.fetchingTask = fetchingTask
-        defer {
-            self.fetchingTask = nil
-        }
         return await fetchingTask.value
 
 
