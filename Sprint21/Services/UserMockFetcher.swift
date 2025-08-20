@@ -12,7 +12,7 @@ protocol UserFetcher {
 }
 
 final class UserMockFetcher {
-    private let userNames: [String] = ["Vadim", "Sergey", "Alex", "Max", "Vlad", "Igor", "Oleg", "Artem", "Vitaly", "Dmitry"]
+    private let userNames: [String] = ["Vadim", "Sergey", "Alex", "Max", "Vlad", "Igor", "Oleg", "Artem", "Vitaly", "Dmitry", "Arnold"]
 
     private func retrieveDelay() -> TimeInterval {
         Double.random(in: 1...3)
