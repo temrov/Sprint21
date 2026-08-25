@@ -10,6 +10,11 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         UserList(model: UserListViewModel(userService: UserMockService.default))
+            .onAppear {
+                UserMockService.default.fetchUsers { _ in
+                    
+                }
+            }
     }
 }
 

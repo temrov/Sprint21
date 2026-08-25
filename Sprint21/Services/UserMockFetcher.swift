@@ -6,7 +6,7 @@
 //
 import Foundation
 
-protocol UserFetcher {
+protocol UserFetcher: Sendable {
     var usersCount: Int { get }
     func fetchUser(with id: Int, completion: @escaping @Sendable (User?) -> Void)
 }

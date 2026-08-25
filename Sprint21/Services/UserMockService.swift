@@ -50,9 +50,7 @@ extension UserMockService: UserService {
 
 extension UserMockService {
 
-    static var `default`: UserMockService {
-        UserMockService(fetcher: UserMockFetcher())
-    }
+    static let `default`: UserMockService = UserMockService(fetcher: UserMockFetcher())
 }
 
 
